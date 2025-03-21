@@ -3,10 +3,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 from collections import OrderedDict
  
- __all__ = (
-   "CoordAtt",
-   "SKAttention",
- )
+__all__ = (
+ "CoordAtt",
+ "SKAttention",
+)
 
 class h_sigmoid(nn.Module):
     def __init__(self, inplace=True):
