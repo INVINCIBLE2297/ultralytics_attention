@@ -78,6 +78,7 @@ from .conv import (
 from .attention import (
     CoordAtt,
     SKAttention,
+    CBAM,
 )
 from .head import OBB, Classify, Detect, Pose, RTDETRDecoder, Segment, WorldDetect, v10Detect
 from .transformer import (
@@ -167,5 +168,6 @@ __all__ = (
     "Index",
     "A2C2f",
     "CoordAtt",
-    "SKAttention"
+    "SKAttention",
+    "CBAM",
 )
