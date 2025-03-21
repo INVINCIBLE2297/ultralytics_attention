@@ -75,6 +75,9 @@ from .conv import (
     RepConv,
     SpatialAttention,
 )
+from .attention import (
+    CoordAtt,
+)
 from .head import OBB, Classify, Detect, Pose, RTDETRDecoder, Segment, WorldDetect, v10Detect
 from .transformer import (
     AIFI,
@@ -162,4 +165,5 @@ __all__ = (
     "TorchVision",
     "Index",
     "A2C2f",
+    "CoordAtt",
 )
