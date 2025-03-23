@@ -69,8 +69,6 @@ class SKAttention(nn.Module):
         super().__init__()
         self.d = max(L, channel//reduction)
         self.convs = nn.ModuleList([])
-        print('channel: ',channel)
-        print('kernels: ',kernels)
         for k in kernels:
             self.convs.append(
                 nn.Sequential(OrderedDict([
