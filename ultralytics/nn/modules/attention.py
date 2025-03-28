@@ -179,7 +179,9 @@ class ECAAttention(nn.Module):
     def forward(self, x):
         # feature descriptor on the global spatial information
         y = self.avg_pool(x)
+        print('y ',y.shape)
         y = self.conv(y.squeeze(-1).transpose(-1, -2)).transpose(-1, -2).unsqueeze(-1)
+        print('y ',y.shape)
         # Multi-scale information fusion
         y = self.sigmoid(y)
         print('x ',x.shape,'y ',y.shape)
