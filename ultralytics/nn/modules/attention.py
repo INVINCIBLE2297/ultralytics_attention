@@ -182,7 +182,7 @@ class ECAAttention(nn.Module):
         y = self.conv(y.squeeze(-1).transpose(-1, -2)).transpose(-1, -2).unsqueeze(-1)
         # Multi-scale information fusion
         y = self.sigmoid(y)
-        print('x ',x.shape,'y ',y.shape,'yed ',y.expand_as(x).shape)
+        print('x ',x.shape,'y ',y.shape)
         return x * y.expand_as(x)
     
 
