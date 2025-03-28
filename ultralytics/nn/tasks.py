@@ -1135,6 +1135,7 @@ def parse_model(d, ch, verbose=True):  # model_dict, input_channels(3)
             SCDown,
             C2fCIB,
             A2C2f,
+            ECAAttention,
         }
     )
     repeat_modules = frozenset(  # modules with 'repeat' arguments
@@ -1233,10 +1234,6 @@ def parse_model(d, ch, verbose=True):  # model_dict, input_channels(3)
             if c2 != nc:  # if c2 not equal to number of classes (i.e. for Classify() output)
                 c2 = make_divisible(min(c2, max_channels) * width, 8)
             args = [c1,  *args[1:]]
-        elif m is ECAAttention:
-            channel = args[0]
-            channel = make_divisible(channel * gw, 8) if channel != no else channel
-            args[0] = channel
         else:
             c2 = ch[f]
 
