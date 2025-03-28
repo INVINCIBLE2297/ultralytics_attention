@@ -1234,9 +1234,9 @@ def parse_model(d, ch, verbose=True):  # model_dict, input_channels(3)
                 c2 = make_divisible(min(c2, max_channels) * width, 8)
             args = [c1,  *args[1:]]
         elif m is ECAAttention:
-            channel,k_size=args[0],args[1]
+            channel = args[0]
             channel = make_divisible(channel * gw, 8) if channel != no else channel
-            args = [channel, k_size]
+            args[0] = channel
         else:
             c2 = ch[f]
 
