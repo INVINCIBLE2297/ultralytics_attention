@@ -80,6 +80,7 @@ from .attention import (
     SKAttention,
     CBAM,
     ECAAttention,
+    GAM,
 )
 from .head import OBB, Classify, Detect, Pose, RTDETRDecoder, Segment, WorldDetect, v10Detect
 from .transformer import (
@@ -172,4 +173,5 @@ __all__ = (
     "SKAttention",
     "CBAM",
     "ECAAttention",
+    "GAM",
 )
