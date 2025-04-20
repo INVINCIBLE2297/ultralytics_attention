@@ -79,6 +79,7 @@ from .attention import (
     CoordAtt,
     SKAttention,
     CBAM_Authentic,
+    CBAM,
     ECAAttention,
     GAM,
 )
