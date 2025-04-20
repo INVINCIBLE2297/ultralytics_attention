@@ -78,7 +78,7 @@ from .conv import (
 from .attention import (
     CoordAtt,
     SKAttention,
-    CBAM,
+    CBAM_Authentic,
     ECAAttention,
     GAM,
 )
@@ -171,7 +171,7 @@ __all__ = (
     "A2C2f",
     "CoordAtt",
     "SKAttention",
-    "CBAM",
+    "CBAM_Authentic",
     "ECAAttention",
     "GAM",
 )
