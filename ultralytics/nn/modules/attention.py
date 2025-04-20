@@ -6,7 +6,7 @@ from collections import OrderedDict
 __all__ = (
  "CoordAtt",
  "SKAttention",
- "CBAM",
+ "CBAM_Authentic",
  "ECAAttention",
  "GAM",
 )
@@ -113,55 +113,70 @@ class SKAttention(nn.Module):
         return V
 
   
-"""
-通道注意力模型: 通道维度不变，压缩空间维度。该模块关注输入图片中有意义的信息。
-1）假设输入的数据大小是(b,c,w,h)
-2）通过自适应平均池化使得输出的大小变为(b,c,1,1)
-3）通过2d卷积和sigmod激活函数后，大小是(b,c,1,1)
-4）将上一步输出的结果和输入的数据相乘，输出数据大小是(b,c,w,h)。
-"""
 class ChannelAttention(nn.Module):
-    # Channel-attention module https://github.com/open-mmlab/mmdetection/tree/v3.0.0rc1/configs/rtmdet
-    def __init__(self, channels: int) -> None:
+    """论文标准的通道注意力模块 (含双池化+共享MLP)"""
+    def __init__(self, channels: int, reduction_ratio: int = 16):
         super().__init__()
-        self.pool = nn.AdaptiveAvgPool2d(1)
-        self.fc = nn.Conv2d(channels, channels, 1, 1, 0, bias=True)
-        self.act = nn.Sigmoid()
+        self.avg_pool = nn.AdaptiveAvgPool2d(1)  # 平均池化分支
+        self.max_pool = nn.AdaptiveMaxPool2d(1)  # 最大池化分支
+
+        # 共享的MLP (使用1x1卷积实现)
+        self.mlp = nn.Sequential(
+            nn.Conv2d(channels, channels // reduction_ratio, kernel_size=1, bias=False),  # 降维
+            nn.ReLU(inplace=True),                                                        # 激活
+            nn.Conv2d(channels // reduction_ratio, channels, kernel_size=1, bias=False)   # 升维
+        )
+        self.sigmoid = nn.Sigmoid()
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return x * self.act(self.fc(self.pool(x)))
+        # 双池化分支处理
+        avg_out = self.mlp(self.avg_pool(x))  # [B, C, 1, 1]
+        max_out = self.mlp(self.max_pool(x))  # [B, C, 1, 1]
 
-"""
-空间注意力模块：空间维度不变，压缩通道维度。该模块关注的是目标的位置信息。
-1） 假设输入的数据x是(b,c,w,h)，并进行两路处理。
-2）其中一路在通道维度上进行求平均值，得到的大小是(b,1,w,h)；另外一路也在通道维度上进行求最大值，得到的大小是(b,1,w,h)。
-3） 然后对上述步骤的两路输出进行连接，输出的大小是(b,2,w,h)
-4）经过一个二维卷积网络，把输出通道变为1，输出大小是(b,1,w,h)
-4）将上一步输出的结果和输入的数据x相乘，最终输出数据大小是(b,c,w,h)。
-"""
+        # 逐元素相加 + Sigmoid
+        channel_att = self.sigmoid(avg_out + max_out)  # [B, C, 1, 1]
+
+        # 应用注意力权重
+        return x * channel_att  # 广播乘法 [B, C, H, W]
+
+
 class SpatialAttention(nn.Module):
-    # Spatial-attention module
-    def __init__(self, kernel_size=7):
+    """论文标准的空间注意力模块"""
+    def __init__(self, kernel_size: int = 7):
         super().__init__()
-        assert kernel_size in (3, 7), 'kernel size must be 3 or 7'
+        assert kernel_size in {3, 7}, "kernel_size必须是3或7"
         padding = 3 if kernel_size == 7 else 1
-        self.cv1 = nn.Conv2d(2, 1, kernel_size, padding=padding, bias=False)
-        self.act = nn.Sigmoid()
 
-    def forward(self, x):
-        return x * self.act(self.cv1(torch.cat([torch.mean(x, 1, keepdim=True), torch.max(x, 1, keepdim=True)[0]], 1)))
+        # 通道维度池化 + 7x7卷积
+        self.conv = nn.Conv2d(2, 1, kernel_size, padding=padding, bias=False)
+        self.sigmoid = nn.Sigmoid()
 
-class CBAM(nn.Module):
-    # Convolutional Block Attention Module
-    def __init__(self, c1, kernel_size=7):  # ch_in, kernels
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # 通道维度池化 (平均和最大)
+        avg_out = torch.mean(x, dim=1, keepdim=True)  # [B, 1, H, W]
+        max_out, _ = torch.max(x, dim=1, keepdim=True)  # [B, 1, H, W]
+
+        # 拼接 + 卷积
+        x_cat = torch.cat([avg_out, max_out], dim=1)    # [B, 2, H, W]
+        spatial_att = self.sigmoid(self.conv(x_cat))    # [B, 1, H, W]
+
+        # 应用注意力权重
+        return x * spatial_att  # 广播乘法 [B, C, H, W]
+
+
+class CBAM_Authentic(nn.Module):
+    """完整的CBAM模块 (通道在前 + 空间在后)"""
+    def __init__(self, channels: int, reduction_ratio: int = 16, spatial_kernel: int = 7):
         super().__init__()
-        self.channel_attention = ChannelAttention(c1)
-        self.spatial_attention = SpatialAttention(kernel_size)
-        
-        
+        self.channel_att = ChannelAttention(channels, reduction_ratio)
+        self.spatial_att = SpatialAttention(spatial_kernel)
 
-    def forward(self, x):
-        return self.spatial_attention(self.channel_attention(x))
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # 顺序执行：通道注意力 -> 空间注意力
+        x = self.channel_att(x)    # 通道细化
+        x = self.spatial_att(x)    # 空间细化
+        return x
+
 
 
 class ECAAttention(nn.Module):
